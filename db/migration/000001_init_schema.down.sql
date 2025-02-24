@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS event_attendees;
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS venues;
+DROP TABLE IF EXISTS users;
