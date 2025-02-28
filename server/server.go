@@ -39,7 +39,7 @@ func (s *Server) SetupRouter() *gin.Engine {
 	router.POST("/login", func(c *gin.Context) { api.LoginUser(c, s.Queries) })
 
 	auth := router.Group("/")
-	//auth.Use(api.AuthMiddleware())
+	auth.Use(api.AuthMiddleware())
 	auth.POST("/venues", func(c *gin.Context) { api.CreateVenue(c, s.Queries) })
 	auth.POST("/events", func(c *gin.Context) { api.CreateEvent(c, s.Queries) })
 	auth.POST("/events/:id/join", func(c *gin.Context) { api.JoinEvent(c, s.Queries) })

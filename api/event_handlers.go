@@ -28,17 +28,17 @@ func CreateEvent(c *gin.Context, queries *db.Queries) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	// userID, exists := c.Get("user_id")
-	// if !exists {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-	// 	return
-	// }
-	// userIDInt, ok := userID.(int32)
-	// if !ok {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-	// 	return
-	// }
-	// req.HostID = userIDInt
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userIDInt, ok := userID.(int32)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	req.HostID = userIDInt
 	// 检查场地是否可用
 	startTime := pgtype.Timestamp{Time: req.StartTime, Valid: true}
 	endTime := pgtype.Timestamp{Time: req.EndTime, Valid: true}
@@ -74,19 +74,19 @@ func CreateEvent(c *gin.Context, queries *db.Queries) {
 }
 
 func JoinEvent(c *gin.Context, queries *db.Queries) {
-	// userID, exists := c.Get("user_id")
-	// if !exists {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-	// 	return
-	// }
-	// userIDInt, ok := userID.(int32)
-	// if !ok {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-	// 	return
-	// }
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userIDInt, ok := userID.(int32)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
 	var req struct {
 		EventID int32 `json:"event_id"`
-		UserID  int32 `json:"user_id"`
+		// UserID  int32 `json:"user_id"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -97,7 +97,7 @@ func JoinEvent(c *gin.Context, queries *db.Queries) {
 	// 调用 SQL 查询，直接检查活动是否已满，并加入活动
 	_, err := queries.JoinEvent(context.Background(), db.JoinEventParams{
 		EventID: req.EventID,
-		UserID:  req.UserID,
+		UserID:  userIDInt,
 	})
 
 	if err != nil {
