@@ -13,6 +13,7 @@ import (
 type Querier interface {
 	CheckVenueAvailability(ctx context.Context, arg CheckVenueAvailabilityParams) (int64, error)
 	CountEventParticipants(ctx context.Context, id int32) (pgtype.Int4, error)
+	CountUpcomingEvents(ctx context.Context) (int32, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Event, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	CreateVenue(ctx context.Context, arg CreateVenueParams) (Venue, error)
@@ -20,6 +21,7 @@ type Querier interface {
 	GetVenueByID(ctx context.Context, id int32) (Venue, error)
 	GetVenueCapacity(ctx context.Context, id int32) (int32, error)
 	JoinEvent(ctx context.Context, arg JoinEventParams) (JoinEventRow, error)
+	ListUpcomingEvents(ctx context.Context, arg ListUpcomingEventsParams) ([]ListUpcomingEventsRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

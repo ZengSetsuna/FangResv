@@ -46,6 +46,19 @@ func (q *Queries) CountEventParticipants(ctx context.Context, id int32) (pgtype.
 	return current_participants, err
 }
 
+const countUpcomingEvents = `-- name: CountUpcomingEvents :one
+SELECT CAST(COUNT(*) AS INT4) 
+FROM events
+WHERE start_time > NOW()
+`
+
+func (q *Queries) CountUpcomingEvents(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, countUpcomingEvents)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createEvent = `-- name: CreateEvent :one
 INSERT INTO events (creator_id, venue_id, name, description, start_time, end_time, location, max_participants)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, creator_id, venue_id, name, description, start_time, end_time, location, max_participants, created_at, current_participants
@@ -197,4 +210,62 @@ func (q *Queries) JoinEvent(ctx context.Context, arg JoinEventParams) (JoinEvent
 	var i JoinEventRow
 	err := row.Scan(&i.EventID, &i.UserID)
 	return i, err
+}
+
+const listUpcomingEvents = `-- name: ListUpcomingEvents :many
+SELECT
+    id,
+    name,
+    start_time,
+    end_time,
+    location,
+    max_participants,
+    current_participants
+FROM events
+WHERE start_time > NOW()
+ORDER BY start_time ASC
+LIMIT $1 OFFSET $2
+`
+
+type ListUpcomingEventsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListUpcomingEventsRow struct {
+	ID                  int32            `json:"id"`
+	Name                string           `json:"name"`
+	StartTime           pgtype.Timestamp `json:"start_time"`
+	EndTime             pgtype.Timestamp `json:"end_time"`
+	Location            string           `json:"location"`
+	MaxParticipants     int32            `json:"max_participants"`
+	CurrentParticipants pgtype.Int4      `json:"current_participants"`
+}
+
+func (q *Queries) ListUpcomingEvents(ctx context.Context, arg ListUpcomingEventsParams) ([]ListUpcomingEventsRow, error) {
+	rows, err := q.db.Query(ctx, listUpcomingEvents, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUpcomingEventsRow{}
+	for rows.Next() {
+		var i ListUpcomingEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Location,
+			&i.MaxParticipants,
+			&i.CurrentParticipants,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

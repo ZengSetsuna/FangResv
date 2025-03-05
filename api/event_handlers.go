@@ -34,11 +34,10 @@ func CreateEvent(c *gin.Context, queries *db.Queries) {
 		return
 	}
 	userIDInt, ok := userID.(int32)
-	if !ok {
+	if !ok || userIDInt != req.HostID {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	req.HostID = userIDInt
 	// 检查场地是否可用
 	startTime := pgtype.Timestamp{Time: req.StartTime, Valid: true}
 	endTime := pgtype.Timestamp{Time: req.EndTime, Valid: true}
@@ -114,4 +113,67 @@ func JoinEvent(c *gin.Context, queries *db.Queries) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Joined event successfully"})
+}
+
+// 请求参数结构体，用于分页
+type ListUpcomingEventsRequest struct {
+	Page     int `json:"page" binding:"required"`
+	PageSize int `json:"page_size" binding:"required"`
+}
+
+// 活动数据结构体
+type Event struct {
+	ID                  int32  `json:"id"`
+	Name                string `json:"name"`
+	StartTime           string `json:"start_time"`
+	EndTime             string `json:"end_time"`
+	Location            string `json:"location"`
+	MaxParticipants     int32  `json:"max_participants"`
+	CurrentParticipants int32  `json:"current_participants"`
+}
+
+// GetUpcomingEvents 处理获取未来活动的 API
+func GetUpcomingEvents(c *gin.Context, queries *db.Queries) {
+	var req ListUpcomingEventsRequest
+
+	// 解析请求参数
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// 计算分页的 OFFSET 和 LIMIT
+	offset := (req.Page - 1) * req.PageSize
+	limit := req.PageSize
+
+	// 获取未来活动的总数
+	count, err := queries.CountUpcomingEvents(c)
+	if err != nil {
+		log.Println("Error getting total count of upcoming events:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to get event count"})
+		return
+	}
+
+	// 获取分页数据
+	events, err := queries.ListUpcomingEvents(c, db.ListUpcomingEventsParams{
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
+	if err != nil {
+		log.Println("Error getting upcoming events:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to get events"})
+		return
+	}
+
+	// 构建分页响应
+	response := gin.H{
+		"total_count": count,
+		"page":        req.Page,
+		"page_size":   req.PageSize,
+		"total_pages": (count + int32(req.PageSize) - 1) / int32(req.PageSize), // 计算总页数
+		"events":      events,
+	}
+
+	// 返回响应
+	c.JSON(http.StatusOK, response)
 }

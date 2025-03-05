@@ -43,7 +43,7 @@ INSERT INTO users (username, password) VALUES ($1, $2);
 SELECT * FROM users WHERE username = $1;
 
 -- name: CountUpcomingEvents :one
-SELECT COUNT(*) 
+SELECT CAST(COUNT(*) AS INT4) 
 FROM events
 WHERE start_time > NOW();
 
