@@ -1,11 +1,11 @@
-package server
+package api
 
 import (
 	"context"
 	"log"
 
-	"FangResv/api"
 	db "FangResv/db/sqlc"
+	"FangResv/util"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,6 +14,7 @@ import (
 type Server struct {
 	Pool    *pgxpool.Pool
 	Queries *db.Queries
+	Mailer  *util.Mailer
 }
 
 // NewServer 初始化服务器
@@ -35,14 +36,14 @@ func NewServer(dbURL string) *Server {
 func (s *Server) SetupRouter() *gin.Engine {
 	router := gin.Default()
 
-	router.POST("/register", func(c *gin.Context) { api.RegisterUser(c, s.Queries) })
-	router.POST("/login", func(c *gin.Context) { api.LoginUser(c, s.Queries) })
+	router.POST("/register", s.RegisterUser)
+	router.POST("/login", s.LoginUser)
 
 	auth := router.Group("/")
-	auth.Use(api.AuthMiddleware())
-	auth.POST("/venues", func(c *gin.Context) { api.CreateVenue(c, s.Queries) })
-	auth.POST("/events", func(c *gin.Context) { api.CreateEvent(c, s.Queries) })
-	auth.POST("/events/:id/join", func(c *gin.Context) { api.JoinEvent(c, s.Queries) })
+	auth.Use(AuthMiddleware())
+	auth.POST("/venues", s.CreateVenue)
+	auth.POST("/events", s.CreateEvent)
+	auth.POST("/events/:id/join", s.JoinEvent)
 
 	return router
 }

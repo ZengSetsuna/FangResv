@@ -10,7 +10,7 @@ import (
 )
 
 // 创建活动场地
-func CreateVenue(c *gin.Context, queries *db.Queries) {
+func (s *Server) CreateVenue(c *gin.Context) {
 	var req struct {
 		Name        string `json:"name"`
 		Capacity    int32  `json:"capacity"`
@@ -23,7 +23,7 @@ func CreateVenue(c *gin.Context, queries *db.Queries) {
 	}
 
 	// 插入场地信息
-	_, err := queries.CreateVenue(context.Background(), db.CreateVenueParams{
+	_, err := s.Queries.CreateVenue(context.Background(), db.CreateVenueParams{
 		Name:        req.Name,
 		Address:     req.Description,
 		MaxCapacity: req.Capacity,

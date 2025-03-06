@@ -15,6 +15,10 @@ type Config struct {
 	TokenSymmetricKey    string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`
 	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION" default:"15m"`
 	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION" default:"72h"`
+	SMTPHost             string        `mapstructure:"SMTP_HOST"`
+	SMTPPort             int           `mapstructure:"SMTP_PORT"`
+	SMTPUsername         string        `mapstructure:"SMTP_USERNAME"`
+	SMTPPassword         string        `mapstructure:"SMTP_PASSWORD"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

@@ -139,6 +139,54 @@ func (q *Queries) CreateVenue(ctx context.Context, arg CreateVenueParams) (Venue
 	return i, err
 }
 
+const deleteEvent = `-- name: DeleteEvent :exec
+DELETE FROM events WHERE id = $1
+`
+
+func (q *Queries) DeleteEvent(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deleteEvent, id)
+	return err
+}
+
+const getEventByID = `-- name: GetEventByID :one
+SELECT id, creator_id, venue_id, name, description, start_time, end_time, location, max_participants, created_at, current_participants FROM events WHERE id = $1
+`
+
+func (q *Queries) GetEventByID(ctx context.Context, id int32) (Event, error) {
+	row := q.db.QueryRow(ctx, getEventByID, id)
+	var i Event
+	err := row.Scan(
+		&i.ID,
+		&i.CreatorID,
+		&i.VenueID,
+		&i.Name,
+		&i.Description,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Location,
+		&i.MaxParticipants,
+		&i.CreatedAt,
+		&i.CurrentParticipants,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, username, password, created_at FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Password,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT id, username, password, created_at FROM users WHERE username = $1
 `
@@ -210,6 +258,178 @@ func (q *Queries) JoinEvent(ctx context.Context, arg JoinEventParams) (JoinEvent
 	var i JoinEventRow
 	err := row.Scan(&i.EventID, &i.UserID)
 	return i, err
+}
+
+const leaveEvent = `-- name: LeaveEvent :one
+WITH updated AS (
+    UPDATE events 
+    SET current_participants = current_participants - 1
+    WHERE id = $1 AND current_participants > 0
+    RETURNING id, current_participants
+)
+DELETE FROM event_attendees
+WHERE event_id = $1 AND user_id = $2
+RETURNING event_id, user_id
+`
+
+type LeaveEventParams struct {
+	EventID int32 `json:"event_id"`
+	UserID  int32 `json:"user_id"`
+}
+
+type LeaveEventRow struct {
+	EventID int32 `json:"event_id"`
+	UserID  int32 `json:"user_id"`
+}
+
+func (q *Queries) LeaveEvent(ctx context.Context, arg LeaveEventParams) (LeaveEventRow, error) {
+	row := q.db.QueryRow(ctx, leaveEvent, arg.EventID, arg.UserID)
+	var i LeaveEventRow
+	err := row.Scan(&i.EventID, &i.UserID)
+	return i, err
+}
+
+const listEventAttendees = `-- name: ListEventAttendees :many
+SELECT user_id FROM event_attendees WHERE event_id = $1
+`
+
+func (q *Queries) ListEventAttendees(ctx context.Context, eventID int32) ([]int32, error) {
+	rows, err := q.db.Query(ctx, listEventAttendees, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int32{}
+	for rows.Next() {
+		var user_id int32
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEventsByAttendeeID = `-- name: ListEventsByAttendeeID :many
+SELECT
+    events.id,
+    events.name,
+    events.start_time,
+    events.end_time,
+    events.location,
+    events.max_participants,
+    events.current_participants
+FROM events
+JOIN event_attendees ON events.id = event_attendees.event_id
+WHERE event_attendees.user_id = $1
+ORDER BY events.start_time ASC
+LIMIT $2 OFFSET $3
+`
+
+type ListEventsByAttendeeIDParams struct {
+	UserID int32 `json:"user_id"`
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListEventsByAttendeeIDRow struct {
+	ID                  int32            `json:"id"`
+	Name                string           `json:"name"`
+	StartTime           pgtype.Timestamp `json:"start_time"`
+	EndTime             pgtype.Timestamp `json:"end_time"`
+	Location            string           `json:"location"`
+	MaxParticipants     int32            `json:"max_participants"`
+	CurrentParticipants pgtype.Int4      `json:"current_participants"`
+}
+
+func (q *Queries) ListEventsByAttendeeID(ctx context.Context, arg ListEventsByAttendeeIDParams) ([]ListEventsByAttendeeIDRow, error) {
+	rows, err := q.db.Query(ctx, listEventsByAttendeeID, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEventsByAttendeeIDRow{}
+	for rows.Next() {
+		var i ListEventsByAttendeeIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Location,
+			&i.MaxParticipants,
+			&i.CurrentParticipants,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEventsByCreatorID = `-- name: ListEventsByCreatorID :many
+SELECT
+    id,
+    name,
+    start_time,
+    end_time,
+    location,
+    max_participants,
+    current_participants
+FROM events
+WHERE creator_id = $1
+ORDER BY start_time ASC
+LIMIT $2 OFFSET $3
+`
+
+type ListEventsByCreatorIDParams struct {
+	CreatorID pgtype.Int4 `json:"creator_id"`
+	Limit     int32       `json:"limit"`
+	Offset    int32       `json:"offset"`
+}
+
+type ListEventsByCreatorIDRow struct {
+	ID                  int32            `json:"id"`
+	Name                string           `json:"name"`
+	StartTime           pgtype.Timestamp `json:"start_time"`
+	EndTime             pgtype.Timestamp `json:"end_time"`
+	Location            string           `json:"location"`
+	MaxParticipants     int32            `json:"max_participants"`
+	CurrentParticipants pgtype.Int4      `json:"current_participants"`
+}
+
+func (q *Queries) ListEventsByCreatorID(ctx context.Context, arg ListEventsByCreatorIDParams) ([]ListEventsByCreatorIDRow, error) {
+	rows, err := q.db.Query(ctx, listEventsByCreatorID, arg.CreatorID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEventsByCreatorIDRow{}
+	for rows.Next() {
+		var i ListEventsByCreatorIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Location,
+			&i.MaxParticipants,
+			&i.CurrentParticipants,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listUpcomingEvents = `-- name: ListUpcomingEvents :many

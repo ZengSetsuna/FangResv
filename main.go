@@ -5,7 +5,7 @@ import (
 	"context"
 	"log"
 
-	"FangResv/server"
+	"FangResv/api"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -29,11 +29,16 @@ func main() {
 	defer dbPool.Close()
 
 	// 创建 Gin 服务器
-	s := server.NewServer(databaseURL)
+	s := api.NewServer(databaseURL)
 
 	// 设置路由
 	router := s.SetupRouter()
-
+	s.Mailer = &util.Mailer{
+		SmtpHost: config.SMTPHost,
+		SmtpPort: config.SMTPPort,
+		SmtpUser: config.SMTPUsername,
+		SmtpPass: config.SMTPPassword,
+	}
 	// 启动服务器
 	log.Println("Server is running on port 8080...")
 	if err := router.Run(":8080"); err != nil {

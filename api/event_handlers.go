@@ -1,20 +1,19 @@
 package api
 
 import (
+	db "FangResv/db/sqlc"
 	"context"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
-	db "FangResv/db/sqlc"
-
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // 创建活动
-func CreateEvent(c *gin.Context, queries *db.Queries) {
+func (s *Server) CreateEvent(c *gin.Context) {
 	var req struct {
 		VenueID         int32     `json:"venue_id"`
 		HostID          int32     `json:"host_id"`
@@ -41,7 +40,7 @@ func CreateEvent(c *gin.Context, queries *db.Queries) {
 	// 检查场地是否可用
 	startTime := pgtype.Timestamp{Time: req.StartTime, Valid: true}
 	endTime := pgtype.Timestamp{Time: req.EndTime, Valid: true}
-	availableCount, err := queries.CheckVenueAvailability(context.Background(), db.CheckVenueAvailabilityParams{
+	availableCount, err := s.Queries.CheckVenueAvailability(context.Background(), db.CheckVenueAvailabilityParams{
 		VenueID: pgtype.Int4{Int32: int32(req.VenueID), Valid: true},
 		Column2: startTime,
 		Column3: endTime,
@@ -51,7 +50,7 @@ func CreateEvent(c *gin.Context, queries *db.Queries) {
 		return
 	}
 	// 创建活动
-	res, err := queries.CreateEvent(context.Background(), db.CreateEventParams{
+	res, err := s.Queries.CreateEvent(context.Background(), db.CreateEventParams{
 		VenueID:         pgtype.Int4{Int32: int32(req.VenueID), Valid: true},
 		CreatorID:       pgtype.Int4{Int32: req.HostID, Valid: true},
 		Name:            req.Name,
@@ -65,14 +64,14 @@ func CreateEvent(c *gin.Context, queries *db.Queries) {
 		log.Println(err)
 		return
 	}
-	_, err = queries.JoinEvent(context.Background(), db.JoinEventParams{
+	_, err = s.Queries.JoinEvent(context.Background(), db.JoinEventParams{
 		EventID: res.ID,
 		UserID:  req.HostID,
 	})
 	c.JSON(http.StatusOK, gin.H{"message": "Event created successfully"})
 }
 
-func JoinEvent(c *gin.Context, queries *db.Queries) {
+func (s *Server) JoinEvent(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -94,7 +93,7 @@ func JoinEvent(c *gin.Context, queries *db.Queries) {
 	}
 
 	// 调用 SQL 查询，直接检查活动是否已满，并加入活动
-	_, err := queries.JoinEvent(context.Background(), db.JoinEventParams{
+	_, err := s.Queries.JoinEvent(context.Background(), db.JoinEventParams{
 		EventID: req.EventID,
 		UserID:  userIDInt,
 	})
@@ -113,6 +112,16 @@ func JoinEvent(c *gin.Context, queries *db.Queries) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Joined event successfully"})
+	user, err := s.Queries.GetUserByID(context.Background(), userIDInt)
+	event, err := s.Queries.GetEventByID(context.Background(), req.EventID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user or event"})
+		log.Println(err)
+		return
+	}
+	eventString := event.StartTime.Time.GoString() + "的" + event.Name
+	s.Mailer.SendEmail(user.Username, "成功加入活动："+eventString, "您已成功加入"+eventString+"，请准时参加！")
+
 }
 
 // 请求参数结构体，用于分页
@@ -133,7 +142,7 @@ type Event struct {
 }
 
 // GetUpcomingEvents 处理获取未来活动的 API
-func GetUpcomingEvents(c *gin.Context, queries *db.Queries) {
+func (s *Server) GetUpcomingEvents(c *gin.Context) {
 	var req ListUpcomingEventsRequest
 
 	// 解析请求参数
@@ -147,7 +156,7 @@ func GetUpcomingEvents(c *gin.Context, queries *db.Queries) {
 	limit := req.PageSize
 
 	// 获取未来活动的总数
-	count, err := queries.CountUpcomingEvents(c)
+	count, err := s.Queries.CountUpcomingEvents(c)
 	if err != nil {
 		log.Println("Error getting total count of upcoming events:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to get event count"})
@@ -155,7 +164,7 @@ func GetUpcomingEvents(c *gin.Context, queries *db.Queries) {
 	}
 
 	// 获取分页数据
-	events, err := queries.ListUpcomingEvents(c, db.ListUpcomingEventsParams{
+	events, err := s.Queries.ListUpcomingEvents(c, db.ListUpcomingEventsParams{
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})

@@ -17,10 +17,17 @@ type Querier interface {
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Event, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	CreateVenue(ctx context.Context, arg CreateVenueParams) (Venue, error)
+	DeleteEvent(ctx context.Context, id int32) error
+	GetEventByID(ctx context.Context, id int32) (Event, error)
+	GetUserByID(ctx context.Context, id int32) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetVenueByID(ctx context.Context, id int32) (Venue, error)
 	GetVenueCapacity(ctx context.Context, id int32) (int32, error)
 	JoinEvent(ctx context.Context, arg JoinEventParams) (JoinEventRow, error)
+	LeaveEvent(ctx context.Context, arg LeaveEventParams) (LeaveEventRow, error)
+	ListEventAttendees(ctx context.Context, eventID int32) ([]int32, error)
+	ListEventsByAttendeeID(ctx context.Context, arg ListEventsByAttendeeIDParams) ([]ListEventsByAttendeeIDRow, error)
+	ListEventsByCreatorID(ctx context.Context, arg ListEventsByCreatorIDParams) ([]ListEventsByCreatorIDRow, error)
 	ListUpcomingEvents(ctx context.Context, arg ListUpcomingEventsParams) ([]ListUpcomingEventsRow, error)
 }
 
