@@ -5,6 +5,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -120,40 +121,28 @@ func (s *Server) JoinEvent(c *gin.Context) {
 		return
 	}
 	eventString := event.StartTime.Time.GoString() + "的" + event.Name
-	s.Mailer.SendEmail(user.Username, "成功加入活动："+eventString, "您已成功加入"+eventString+"，请准时参加！")
+	s.Mailer.SendEmail(user.Email, "成功加入活动："+eventString, "您已成功加入"+eventString+"，请准时参加！")
 
-}
-
-// 请求参数结构体，用于分页
-type ListUpcomingEventsRequest struct {
-	Page     int `json:"page" binding:"required"`
-	PageSize int `json:"page_size" binding:"required"`
-}
-
-// 活动数据结构体
-type Event struct {
-	ID                  int32  `json:"id"`
-	Name                string `json:"name"`
-	StartTime           string `json:"start_time"`
-	EndTime             string `json:"end_time"`
-	Location            string `json:"location"`
-	MaxParticipants     int32  `json:"max_participants"`
-	CurrentParticipants int32  `json:"current_participants"`
 }
 
 // GetUpcomingEvents 处理获取未来活动的 API
 func (s *Server) GetUpcomingEvents(c *gin.Context) {
-	var req ListUpcomingEventsRequest
-
-	// 解析请求参数
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+	// 从 URL 查询参数获取分页信息，提供默认值
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid page number"})
 		return
 	}
 
-	// 计算分页的 OFFSET 和 LIMIT
-	offset := (req.Page - 1) * req.PageSize
-	limit := req.PageSize
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if err != nil || pageSize < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid page size"})
+		return
+	}
+
+	// 计算 OFFSET 和 LIMIT
+	offset := (page - 1) * pageSize
+	limit := pageSize
 
 	// 获取未来活动的总数
 	count, err := s.Queries.CountUpcomingEvents(c)
@@ -174,15 +163,76 @@ func (s *Server) GetUpcomingEvents(c *gin.Context) {
 		return
 	}
 
-	// 构建分页响应
-	response := gin.H{
+	// 计算总页数
+	totalPages := (count + int32(pageSize) - 1) / int32(pageSize)
+
+	// 返回 JSON 响应
+	c.JSON(http.StatusOK, gin.H{
 		"total_count": count,
-		"page":        req.Page,
-		"page_size":   req.PageSize,
-		"total_pages": (count + int32(req.PageSize) - 1) / int32(req.PageSize), // 计算总页数
+		"page":        page,
+		"page_size":   pageSize,
+		"total_pages": totalPages,
 		"events":      events,
+	})
+}
+
+func (s *Server) CancelEvent(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userIDInt, ok := userID.(int32)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	var req struct {
+		EventID int32 `json:"event_id"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	event, err := s.Queries.GetEventByID(context.Background(), req.EventID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		return
+	}
+
+	if event.CreatorID.Int32 != userIDInt {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	attendees, err := s.Queries.ListEventAttendees(context.Background(), req.EventID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get attendees"})
+		log.Println(err)
+		return
+	}
+
+	for _, attendeeID := range attendees {
+		user, err := s.Queries.GetUserByID(context.Background(), attendeeID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user"})
+			log.Println(err)
+			return
+		}
+		eventString := event.StartTime.Time.GoString() + "的" + event.Name
+		s.Mailer.SendEmail(user.Email, "活动取消："+eventString, "很抱歉，"+eventString+"已取消。")
+	}
+
+	// 取消活动
+	err = s.Queries.DeleteEvent(context.Background(), req.EventID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel event"})
+		log.Println(err)
+		return
 	}
 
 	// 返回响应
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, gin.H{"message": "Event cancelled successfully"})
 }

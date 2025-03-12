@@ -33,6 +33,7 @@ func main() {
 
 	// 设置路由
 	router := s.SetupRouter()
+
 	s.Mailer = &util.Mailer{
 		SmtpHost: config.SMTPHost,
 		SmtpPort: config.SMTPPort,

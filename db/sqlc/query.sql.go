@@ -104,16 +104,17 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 }
 
 const createUser = `-- name: CreateUser :exec
-INSERT INTO users (username, password) VALUES ($1, $2)
+INSERT INTO users (username, password, email) VALUES ($1, $2, $3)
 `
 
 type CreateUserParams struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.Exec(ctx, createUser, arg.Username, arg.Password)
+	_, err := q.db.Exec(ctx, createUser, arg.Username, arg.Password, arg.Email)
 	return err
 }
 
@@ -172,7 +173,7 @@ func (q *Queries) GetEventByID(ctx context.Context, id int32) (Event, error) {
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password, created_at FROM users WHERE id = $1
+SELECT id, username, email, password, created_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
@@ -181,6 +182,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.Email,
 		&i.Password,
 		&i.CreatedAt,
 	)
@@ -188,7 +190,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password, created_at FROM users WHERE username = $1
+SELECT id, username, email, password, created_at FROM users WHERE username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -197,6 +199,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.Email,
 		&i.Password,
 		&i.CreatedAt,
 	)

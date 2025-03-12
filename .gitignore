@@ -1,4 +1,3 @@
 app.env
 .vscode/
-frontend/
 util/mailer_test.go

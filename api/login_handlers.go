@@ -13,10 +13,11 @@ import (
 )
 
 // 注册用户
-func RegisterUser(c *gin.Context, queries *db.Queries) {
+func (s *Server) RegisterUser(c *gin.Context) {
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -32,9 +33,10 @@ func RegisterUser(c *gin.Context, queries *db.Queries) {
 	}
 
 	// 插入用户
-	err = queries.CreateUser(context.Background(), db.CreateUserParams{
+	err = s.Queries.CreateUser(context.Background(), db.CreateUserParams{
 		Username: req.Username,
 		Password: string(hashedPassword),
+		Email:    req.Email,
 	})
 
 	if err != nil {
@@ -47,7 +49,7 @@ func RegisterUser(c *gin.Context, queries *db.Queries) {
 }
 
 // 用户登录
-func LoginUser(c *gin.Context, queries *db.Queries) {
+func (s *Server) LoginUser(c *gin.Context) {
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -59,7 +61,7 @@ func LoginUser(c *gin.Context, queries *db.Queries) {
 	}
 
 	// 查询用户
-	user, err := queries.GetUserByUsername(context.Background(), req.Username)
+	user, err := s.Queries.GetUserByUsername(context.Background(), req.Username)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return

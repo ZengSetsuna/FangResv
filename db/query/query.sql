@@ -37,7 +37,7 @@ FROM updated
 RETURNING event_id, user_id;
 
 -- name: CreateUser :exec
-INSERT INTO users (username, password) VALUES ($1, $2);
+INSERT INTO users (username, password, email) VALUES ($1, $2, $3);
 
 -- name: GetUserByUsername :one
 SELECT * FROM users WHERE username = $1;
