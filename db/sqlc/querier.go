@@ -18,8 +18,10 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	CreateVenue(ctx context.Context, arg CreateVenueParams) (Venue, error)
 	DeleteEvent(ctx context.Context, id int32) error
+	DeletePendingUserByEmail(ctx context.Context, email string) error
 	GetEventByID(ctx context.Context, id int32) (Event, error)
 	GetEventDetails(ctx context.Context, id int32) (GetEventDetailsRow, error)
+	GetPendingUserByEmail(ctx context.Context, email string) (PendingUser, error)
 	GetUserByID(ctx context.Context, id int32) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetVenueByID(ctx context.Context, id int32) (Venue, error)
@@ -30,6 +32,7 @@ type Querier interface {
 	ListEventsByAttendeeID(ctx context.Context, arg ListEventsByAttendeeIDParams) ([]ListEventsByAttendeeIDRow, error)
 	ListEventsByCreatorID(ctx context.Context, arg ListEventsByCreatorIDParams) ([]ListEventsByCreatorIDRow, error)
 	ListUpcomingEvents(ctx context.Context, arg ListUpcomingEventsParams) ([]ListUpcomingEventsRow, error)
+	NewPendingUser(ctx context.Context, arg NewPendingUserParams) error
 }
 
 var _ Querier = (*Queries)(nil)

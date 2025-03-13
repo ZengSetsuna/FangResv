@@ -45,6 +45,7 @@ func (s *Server) SetupRouter() *gin.Engine {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour, // 预检缓存 12 小时
 	}))
+	router.POST("/preregister", s.PreregisterUser)
 	router.POST("/register", s.RegisterUser)
 	router.POST("/login", s.LoginUser)
 

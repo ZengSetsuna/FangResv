@@ -2,10 +2,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Login: React.FC = () => {
-  const [username, setUsername] = useState(""); // 改为用户名
+  const [username, setUsername] = useState(""); 
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null); // 存储 Token
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -17,10 +16,7 @@ const Login: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          username,  // 确保发送的是 username
-          password,
-        }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
@@ -29,11 +25,10 @@ const Login: React.FC = () => {
         throw new Error(data.message || "登录失败");
       }
 
-      setToken(data.token); // 存储 Token
-      localStorage.setItem("token", data.token); // 存储到 localStorage
+      localStorage.setItem("token", data.token); // 存储 Token
       navigate("/events"); // 登录成功后跳转
     } catch (err: any) {
-      console.error("登录请求出错:", err); // 控制台打印错误
+      console.error("登录请求出错:", err);
       setError(err.message);
     }
   };
@@ -77,6 +72,16 @@ const Login: React.FC = () => {
             登录
           </button>
         </form>
+
+        <div className="mt-4 text-center">
+          <p className="text-gray-600">还没有账号？</p>
+          <button
+            onClick={() => navigate("/register")}
+            className="mt-2 w-full bg-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-400 transition"
+          >
+            注册
+          </button>
+        </div>
       </div>
     </div>
   );

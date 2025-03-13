@@ -153,3 +153,12 @@ SELECT
     (ei.current_participants < ei.max_participants) AS can_join
 FROM event_info ei
 LEFT JOIN attendees a ON ei.event_id = a.event_id;
+
+-- name: NewPendingUser :exec
+INSERT INTO pending_users (email, username, code, expires_at) VALUES ($1, $2, $3, $4);
+
+-- name: GetPendingUserByEmail :one
+SELECT * FROM pending_users WHERE email = $1;
+
+-- name: DeletePendingUserByEmail :exec
+DELETE FROM pending_users WHERE email = $1;

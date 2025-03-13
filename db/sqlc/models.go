@@ -30,6 +30,15 @@ type EventAttendee struct {
 	Status    pgtype.Text      `json:"status"`
 }
 
+type PendingUser struct {
+	ID        int32            `json:"id"`
+	Email     string           `json:"email"`
+	Username  string           `json:"username"`
+	Code      string           `json:"code"`
+	ExpiresAt pgtype.Timestamp `json:"expires_at"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+}
+
 type User struct {
 	ID        int32            `json:"id"`
 	Username  string           `json:"username"`

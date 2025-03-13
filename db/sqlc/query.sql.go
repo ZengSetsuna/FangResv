@@ -149,6 +149,15 @@ func (q *Queries) DeleteEvent(ctx context.Context, id int32) error {
 	return err
 }
 
+const deletePendingUserByEmail = `-- name: DeletePendingUserByEmail :exec
+DELETE FROM pending_users WHERE email = $1
+`
+
+func (q *Queries) DeletePendingUserByEmail(ctx context.Context, email string) error {
+	_, err := q.db.Exec(ctx, deletePendingUserByEmail, email)
+	return err
+}
+
 const getEventByID = `-- name: GetEventByID :one
 SELECT id, creator_id, venue_id, name, description, start_time, end_time, location, max_participants, created_at, current_participants FROM events WHERE id = $1
 `
@@ -243,6 +252,24 @@ func (q *Queries) GetEventDetails(ctx context.Context, id int32) (GetEventDetail
 		&i.Organizer,
 		&i.Participants,
 		&i.CanJoin,
+	)
+	return i, err
+}
+
+const getPendingUserByEmail = `-- name: GetPendingUserByEmail :one
+SELECT id, email, username, code, expires_at, created_at FROM pending_users WHERE email = $1
+`
+
+func (q *Queries) GetPendingUserByEmail(ctx context.Context, email string) (PendingUser, error) {
+	row := q.db.QueryRow(ctx, getPendingUserByEmail, email)
+	var i PendingUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.Code,
+		&i.ExpiresAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -566,4 +593,25 @@ func (q *Queries) ListUpcomingEvents(ctx context.Context, arg ListUpcomingEvents
 		return nil, err
 	}
 	return items, nil
+}
+
+const newPendingUser = `-- name: NewPendingUser :exec
+INSERT INTO pending_users (email, username, code, expires_at) VALUES ($1, $2, $3, $4)
+`
+
+type NewPendingUserParams struct {
+	Email     string           `json:"email"`
+	Username  string           `json:"username"`
+	Code      string           `json:"code"`
+	ExpiresAt pgtype.Timestamp `json:"expires_at"`
+}
+
+func (q *Queries) NewPendingUser(ctx context.Context, arg NewPendingUserParams) error {
+	_, err := q.db.Exec(ctx, newPendingUser,
+		arg.Email,
+		arg.Username,
+		arg.Code,
+		arg.ExpiresAt,
+	)
+	return err
 }
