@@ -19,6 +19,7 @@ type Querier interface {
 	CreateVenue(ctx context.Context, arg CreateVenueParams) (Venue, error)
 	DeleteEvent(ctx context.Context, id int32) error
 	GetEventByID(ctx context.Context, id int32) (Event, error)
+	GetEventDetails(ctx context.Context, id int32) (GetEventDetailsRow, error)
 	GetUserByID(ctx context.Context, id int32) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetVenueByID(ctx context.Context, id int32) (Venue, error)

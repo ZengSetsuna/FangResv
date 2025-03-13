@@ -172,6 +172,81 @@ func (q *Queries) GetEventByID(ctx context.Context, id int32) (Event, error) {
 	return i, err
 }
 
+const getEventDetails = `-- name: GetEventDetails :one
+WITH event_info AS (
+    SELECT 
+        e.id AS event_id,
+        e.name AS event_name,
+        e.description,
+        e.start_time,
+        e.end_time,
+        v.name AS venue_name,
+        e.max_participants,
+        e.current_participants,
+        u.username AS organizer
+    FROM events e
+    JOIN venues v ON e.venue_id = v.id
+    JOIN users u ON e.creator_id = u.id
+    WHERE e.id = $1
+),
+attendees AS (
+    SELECT 
+        ea.event_id,
+        json_agg(u.username) AS participant_usernames
+    FROM event_attendees ea
+    JOIN users u ON ea.user_id = u.id
+    WHERE ea.event_id = $1
+    GROUP BY ea.event_id
+)
+SELECT 
+    ei.event_id,
+    ei.event_name,
+    ei.description,
+    ei.start_time,
+    ei.end_time,
+    ei.venue_name AS location,
+    ei.max_participants,
+    ei.current_participants,
+    ei.organizer,
+    COALESCE(a.participant_usernames, '[]'::json) AS participants,
+    (ei.current_participants < ei.max_participants) AS can_join
+FROM event_info ei
+LEFT JOIN attendees a ON ei.event_id = a.event_id
+`
+
+type GetEventDetailsRow struct {
+	EventID             int32            `json:"event_id"`
+	EventName           string           `json:"event_name"`
+	Description         pgtype.Text      `json:"description"`
+	StartTime           pgtype.Timestamp `json:"start_time"`
+	EndTime             pgtype.Timestamp `json:"end_time"`
+	Location            string           `json:"location"`
+	MaxParticipants     int32            `json:"max_participants"`
+	CurrentParticipants pgtype.Int4      `json:"current_participants"`
+	Organizer           string           `json:"organizer"`
+	Participants        []byte           `json:"participants"`
+	CanJoin             bool             `json:"can_join"`
+}
+
+func (q *Queries) GetEventDetails(ctx context.Context, id int32) (GetEventDetailsRow, error) {
+	row := q.db.QueryRow(ctx, getEventDetails, id)
+	var i GetEventDetailsRow
+	err := row.Scan(
+		&i.EventID,
+		&i.EventName,
+		&i.Description,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Location,
+		&i.MaxParticipants,
+		&i.CurrentParticipants,
+		&i.Organizer,
+		&i.Participants,
+		&i.CanJoin,
+	)
+	return i, err
+}
+
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, username, email, password, created_at FROM users WHERE id = $1
 `

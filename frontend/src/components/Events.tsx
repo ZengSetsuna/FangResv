@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom"; // 确保安装 react-router-dom
 
 type Event = {
   id: number;
@@ -14,9 +15,10 @@ export default function EventList() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1); // 当前页码
-  const pageSize = 20; // 每页显示数量（固定）
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
+  const pageSize = 20;
   const token = localStorage.getItem("token");
 
   const headers = {
@@ -24,7 +26,6 @@ export default function EventList() {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  // 加载活动数据（带分页）
   const fetchEvents = async () => {
     setLoading(true);
     try {
@@ -37,6 +38,7 @@ export default function EventList() {
 
       const data = await response.json();
       setEvents(data.events);
+      setHasMore(data.events.length >= pageSize);
     } catch (err) {
       setError("无法加载活动信息");
     } finally {
@@ -46,9 +48,8 @@ export default function EventList() {
 
   useEffect(() => {
     fetchEvents();
-  }, [page]); // 监听 page 变化，自动请求新数据
+  }, [page]);
 
-  // 加入活动
   const handleJoinEvent = async (eventId: number) => {
     if (!token) {
       alert("请先登录");
@@ -64,7 +65,6 @@ export default function EventList() {
 
       if (!response.ok) throw new Error("加入失败，请重试");
 
-      // 更新前端数据
       setEvents((prevEvents) =>
         prevEvents.map((event) =>
           event.id === eventId
@@ -74,11 +74,7 @@ export default function EventList() {
       );
       alert("加入成功！");
     } catch (error) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert("发生未知错误");
-      }
+      alert(error instanceof Error ? error.message : "发生未知错误");
     }
   };
 
@@ -95,7 +91,12 @@ export default function EventList() {
           <ul className="space-y-4">
             {events.map((event) => (
               <li key={event.id} className="bg-white p-4 rounded-lg shadow-md border">
-                <h2 className="text-lg font-semibold">{event.name}</h2>
+                {/* 点击跳转到活动详情页面 */}
+                <h2 className="text-lg font-semibold">
+                  <Link to={`/events/${event.id}`} className="text-blue-500 hover:underline">
+                    {event.name}
+                  </Link>
+                </h2>
                 <p className="text-gray-500">{event.location}</p>
                 <p className="text-gray-500">
                   {new Date(event.start_time).toLocaleString()} - {new Date(event.end_time).toLocaleString()}
@@ -129,8 +130,9 @@ export default function EventList() {
             </button>
             <span className="text-gray-700">当前页: {page}</span>
             <button
-              onClick={() => setPage((prev) => prev + 1)}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg"
+              onClick={() => setPage((prev) => (hasMore ? prev + 1 : prev))}
+              disabled={!hasMore}
+              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg disabled:opacity-50"
             >
               下一页
             </button>

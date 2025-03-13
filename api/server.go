@@ -53,6 +53,7 @@ func (s *Server) SetupRouter() *gin.Engine {
 	auth.POST("/venues", s.CreateVenue)
 	auth.GET("/events", s.GetUpcomingEvents)
 	auth.POST("/events", s.CreateEvent)
+	auth.GET("/events/:id", s.GetEventDetails)
 	auth.POST("/events/:id/join", s.JoinEvent)
 
 	return router

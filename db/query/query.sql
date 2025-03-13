@@ -112,3 +112,44 @@ JOIN event_attendees ON events.id = event_attendees.event_id
 WHERE event_attendees.user_id = $1
 ORDER BY events.start_time ASC
 LIMIT $2 OFFSET $3;
+
+-- name: GetEventDetails :one
+WITH event_info AS (
+    SELECT 
+        e.id AS event_id,
+        e.name AS event_name,
+        e.description,
+        e.start_time,
+        e.end_time,
+        v.name AS venue_name,
+        e.max_participants,
+        e.current_participants,
+        u.username AS organizer
+    FROM events e
+    JOIN venues v ON e.venue_id = v.id
+    JOIN users u ON e.creator_id = u.id
+    WHERE e.id = $1
+),
+attendees AS (
+    SELECT 
+        ea.event_id,
+        json_agg(u.username) AS participant_usernames
+    FROM event_attendees ea
+    JOIN users u ON ea.user_id = u.id
+    WHERE ea.event_id = $1
+    GROUP BY ea.event_id
+)
+SELECT 
+    ei.event_id,
+    ei.event_name,
+    ei.description,
+    ei.start_time,
+    ei.end_time,
+    ei.venue_name AS location,
+    ei.max_participants,
+    ei.current_participants,
+    ei.organizer,
+    COALESCE(a.participant_usernames, '[]'::json) AS participants,
+    (ei.current_participants < ei.max_participants) AS can_join
+FROM event_info ei
+LEFT JOIN attendees a ON ei.event_id = a.event_id;

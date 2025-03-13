@@ -1,10 +1,16 @@
-#root {
-  width: 100%;  /* 让它占满整个页面 */
-  max-width: 1200px; /* 设置一个合适的最大宽度，防止过宽 */
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
 }
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  text-align: center;
+  padding-top: 70px; /* 让内容下移，避免被 navbar 遮挡 */
+}
+
 
 
 .logo {

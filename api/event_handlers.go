@@ -3,6 +3,7 @@ package api
 import (
 	db "FangResv/db/sqlc"
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"strconv"
@@ -235,4 +236,40 @@ func (s *Server) CancelEvent(c *gin.Context) {
 
 	// 返回响应
 	c.JSON(http.StatusOK, gin.H{"message": "Event cancelled successfully"})
+}
+
+func (s *Server) GetEventDetails(c *gin.Context) {
+	// 从 URL 参数获取 event_id
+	eventID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		return
+	}
+
+	// 查询数据库
+	eventDetails, err := s.Queries.GetEventDetails(c, int32(eventID))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		} else {
+			log.Println("Database error:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not retrieve event details"})
+		}
+		return
+	}
+
+	// 返回 JSON 响应
+	c.JSON(http.StatusOK, gin.H{
+		"event_id":             eventDetails.EventID,
+		"event_name":           eventDetails.EventName,
+		"description":          eventDetails.Description,
+		"start_time":           eventDetails.StartTime.Time.Format(time.RFC3339),
+		"end_time":             eventDetails.EndTime.Time.Format(time.RFC3339),
+		"location":             eventDetails.Location,
+		"max_participants":     eventDetails.MaxParticipants,
+		"current_participants": eventDetails.CurrentParticipants,
+		"organizer":            eventDetails.Organizer,
+		"participants":         eventDetails.Participants,
+		"can_join":             eventDetails.CanJoin,
+	})
 }
