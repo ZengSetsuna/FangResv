@@ -26,7 +26,12 @@ const Login: React.FC = () => {
       }
 
       localStorage.setItem("token", data.token); // 存储 Token
-      navigate("/events"); // 登录成功后跳转
+
+      // 获取存储的重定向路径
+      const redirectPath = localStorage.getItem("redirectPath") || "/events";
+      localStorage.removeItem("redirectPath"); // 登录成功后删除记录
+
+      navigate(redirectPath); // 登录成功后跳转到之前访问的页面
     } catch (err: any) {
       console.error("登录请求出错:", err);
       setError(err.message);
@@ -73,6 +78,7 @@ const Login: React.FC = () => {
           </button>
         </form>
 
+        {/* 注册按钮 */}
         <div className="mt-4 text-center">
           <p className="text-gray-600">还没有账号？</p>
           <button
